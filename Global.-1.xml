@@ -1,0 +1,72 @@
+<Defaults>
+  <Button color="#828282"/>
+  <Button class="ini" color="rgba(255, 255, 255, 0.95)" textColor="rgb(1, 1, 1)" fontSize="10"/>
+  <Image preserveAspect="true"/>
+</Defaults>
+
+<Panel
+    id="startGame"
+    rectAlignment="MiddleRight"
+    width="300"
+    height="200"
+    offsetXY="-100 100"
+    allowDragging="true"
+    returnToOriginalPositionWhenReleased="false"
+>
+  <VerticalLayout>
+    <Text color="rgba(255,255,255,0.95)">
+        Embark on a daring journey as you pioneer a burgeoning island community in this strategic board game. With limited resources, forge industries, sail ships, and navigate the balance between progress and populace contentment. Will you thrive in industrialization, secure trade routes, and earn favor with the Queen? Join the expedition, master the game, and claim victory!
+    </Text>
+    <Button onClick="gameSetup" height="10">
+      <Text>Start Game</Text>
+    </Button>
+  </VerticalLayout>
+</Panel>
+
+<Panel
+    id="setupGame"
+    width="1000"
+    height="200"
+    rectAlignment="Center"
+    active="false"
+    color="rgba(0,0,0,0.95)"
+    allowDragging="true"
+    returnToOriginalPositionWhenReleased="false"
+>
+<TableLayout cellSpacing="2">
+    <Row>
+        <Cell>
+            <Text color="rgba(255,255,255,0.95)">
+                Ensure all players are seated at the table before clicking on setup.
+                The initial player will be selected randomly.
+            </Text>
+        </Cell>
+        <Cell padding="10 10 10 10">
+            <VerticalLayout>
+                <Toggle onValueChanged="setFirstGame(isOn)" isOn="false">
+                    <Text color="rgba(255,255,255,0.95)"> Is this your first Game</Text>
+                </Toggle>
+                <Text color="rgba(255,255,255,0.95)">Choose Number of Players</Text>
+                <Dropdown id="Selection" onValueChanged="optionSelected">
+                    <Option>1</Option>
+                    <Option>2</Option>
+                    <Option>3</Option>
+                    <Option selected="true">4</Option>
+                </Dropdown>
+            </VerticalLayout>
+        </Cell>
+    </Row>
+    <Row preferredHeight="50">
+        <Cell>
+            <Button onClick="cancel">
+            <Text>Cancel</Text>
+            </Button>
+        </Cell>
+        <Cell>
+            <Button onClick="startGame">
+            <Text>Setup</Text>
+            </Button>
+        </Cell>
+    </Row>
+</TableLayout>
+</Panel>
