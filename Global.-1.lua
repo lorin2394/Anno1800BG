@@ -28,8 +28,633 @@ guids = {
     goldToken5 = '6dba03',
     startingPlayerToken = '83541c',
 }
+
+globalState = {}
+
+homeIslandScript = [[
+    objectGuids = {
+        old_world_islands = '082e6b',
+        new_world_islands = 'edc2d6',
+        tradeShips = {
+            level1 = 'fe420c',
+            level2 = '96cb2f',
+            level3 = 'f4513f',
+        },
+        explorationShips = {
+            level1 = '920d4c',
+            level2 = 'd2e2b0',
+            level3 = '9b362c',
+        },
+        tradeTokens = 'e77b34',
+        explorationTokens = '0ff433',
+        bowl = '',
+        treasureTile = '',
+    }
+    
+    oldIslandState = 1
+    oldIslandCounter = 0
+    newIslandState = 1
+    newIslandCounter = 0
+    cloneAndLockedShips = false
+    isSpawnedBowl = false
+    isSpawnedTreasureTile = false
+    isInverse = false
+    
+    
+    locations = {
+        oldWorldXOffset = 6,
+        newWorldIslandLocation = {
+            position = {    
+                self.getPosition()[1] + 12,
+                self.getPosition()[2] + 1,
+                self.getPosition()[3] + 3,
+            },
+            rotation = {0.00, 180.00, 0.00},
+            scale = {1.02, 1.00, 1.02},
+        },
+        newWorldXOffset = 9,
+    }
+    
+    function onLoad(script_state)
+        if script_state ~= '' then
+            local state = JSON.decode(script_state)
+            guid = self.getGUID()
+            oldIslandState = state[guid].oldIslandState
+            oldIslandCounter = state[guid].oldIslandCounter
+            cloneAndLockedShips = state[guid].cloneAndLockedShips
+            isSpawnedBowl = state[guid].isSpawnedBowl
+            objectGuids.bowl = state[guid].bowlGuid
+            isSpawnedTreasureTile = state[guid].isSpawnedTreasureTile
+            objectGuids.treasureTile = state[guid].treasureTileGuid
+            isInverse = state[guid].isInverse
+        end
+    
+        isInverse = Global.call('getIsInverse', {
+            rotation = self.getRotation()
+        })
+    
+        self.interactable = false
+        self.createButton({
+            click_function='addOldWorldIsland',
+            function_owner=self,
+            label='+ Old World Island',
+            position={1,1,1.10},
+            rotation={0,0,0},
+            scale={1,1,1},
+            width=150,
+            height=20,
+            font_size=30,
+            color={0,0,0,1},
+            font_color={1,1,1,1},
+        })
+    
+        self.createButton({
+            click_function='addNewWorldIsland',
+            function_owner=self,
+            label='+ New World Island',
+            position={1,1,-1.05},
+            rotation={0,0,0},
+            scale={1,1,1},
+            width=150,
+            height=20,
+            font_size=30,
+            color={0,0,0,1},
+            font_color={1,1,1,1}
+        })
+    
+        self.createButton({
+            click_function='festivalAction',
+            function_owner=self,
+            label='Festival',
+            position={-1,1,1.05},
+            rotation={0,0,0},
+            scale={1,1,1},
+            width=150,
+            height=20,
+            font_size=30,
+            color={0,0,0,1},
+            font_color={1,1,1,1}
+        })
+        
+        self.setSnapPoints({
+            {position = {0, 0, 0}, rotation = {0, 0, 0}, rotation_snap = true},
+            {position = {0.4, 0, 0.4}, rotation = {0, 0, 0}, rotation_snap = true},
+            {position = {-0.4, 0, -0.4}, rotation = {0, 0, 0}, rotation_snap = true},
+            {position = {-0.4, 0, 0.4}, rotation = {0, 0, 0}, rotation_snap = true},
+            {position = {0.4, 0, -0.4}, rotation = {0, 0, 0}, rotation_snap = true},
+            {position = {0, 0, 0.4}, rotation = {0, 0, 0}, rotation_snap = true},
+            {position = {0, 0, -0.4}, rotation = {0, 0, 0}, rotation_snap = true},
+            {position = {0.4, 0, 0}, rotation = {0, 0, 0}, rotation_snap = true},
+            {position = {-0.4, 0, 0}, rotation = {0, 0, 0}, rotation_snap = true},
+            {position = {0, 0, 0.8}, rotation = {0, 0, 0}, rotation_snap = true},
+            {position = {0.8, 0, 0}, rotation = {0, 0, 0}, rotation_snap = true},
+            {position = {-0.8, 0, 0}, rotation = {0, 0, 0}, rotation_snap = true},
+            {position = {0.8, 0, 0.8}, rotation = {0, 0, 0}, rotation_snap = true},
+            {position = {-0.8, 0, 0.8}, rotation = {0, 0, 0}, rotation_snap = true},
+            {position = {-0.4, 0, 0.8}, rotation = {0, 0, 0}, rotation_snap = true},
+            {position = {0.4, 0, 0.8}, rotation = {0, 0, 0}, rotation_snap = true},
+            {position = {-0.8, 0, 0.4}, rotation = {0, 0, 0}, rotation_snap = true},
+            {position = {-0.8, 0, -0.4}, rotation = {0, 0, 0}, rotation_snap = true},
+            {position = {0.8, 0, -0.4}, rotation = {0, 0, 0}, rotation_snap = true},
+            {position = {0.8, 0, 0.4}, rotation = {0, 0, 0}, rotation_snap = true},
+        })
+    
+        if not cloneAndLockedShips then
+            cloneTradeAndExplorationShips()
+        end
+    
+        if not isSpawnedBowl then
+            local position = self.getPosition():add(Vector(-11, 1, -6.5))
+            if isInverse then
+                local x, y, z = position:get()
+                position.x = -x
+                position.z = 24.5
+            end
+            bowl = spawnObject({
+                type = "Bowl",
+                position = position,
+                rotation = self.getRotation(),
+                callback_function = function(obj) Wait.time(function() obj.setLock(true) end, 3) end,
+            })
+    
+            objectGuids.bowl = bowl.getGUID()
+            isSpawnedBowl = true
+        end
+    
+        if not isSpawnedTreasureTile then
+            spawnTreasureTile()
+            isSpawnedTreasureTile = true
+        end
+    end
+    
+    function spawnTreasureTile()
+        local position = self.getPosition():add(Vector(-11, 1, -0.5))
+        if isInverse then
+            local x, y, z = position:get()
+            position.x = -x
+            position.z = 18.5
+        end
+        local params = {
+            type = 'Custom_Tile',
+            position = position,
+            rotation = self.getRotation(),
+            scale = {3, 1, 3},
+            callback_function = function(obj) Wait.time(function() obj.setLock(true) end, 3) end,
+        }
+        treasureTile = spawnObject(params)
+        treasureTile.setCustomObject({
+            image = 'http://cloud-3.steamusercontent.com/ugc/2283954541477222804/AB854B902BDCE04B8B9952EA0B63F2EC520D6C0D/',
+            type = 0,
+            image_bottom = 'http://cloud-3.steamusercontent.com/ugc/2283954541477222804/AB854B902BDCE04B8B9952EA0B63F2EC520D6C0D/',
+            thickness = 0.1,
+            stackable = false,
+        })
+        objectGuids.treasureTile = treasureTile.getGUID()
+        isSpawnedTreasureTile = true
+    end
+    
+    
+    function cloneTradeAndExplorationShips()
+        -- first trade ship
+        cloneAndLockShip(objectGuids.tradeShips.level1, Vector(-5.5, 1, -5.5))
+    
+        -- second trade ship
+        cloneAndLockShip(objectGuids.tradeShips.level1, Vector(-3.5, 1, -5.5))
+    
+        -- third Exploration ship
+        cloneAndLockShip(objectGuids.explorationShips.level1, Vector(-0.5, 1, -5.5))
+    
+        cloneAndLockedShips = true
+    end
+    
+    function cloneAndLockShip(shipGuid, positionOffset)
+        local object = getObjectFromGUID(shipGuid)
+        local takenObject = object.takeObject({
+            position = self.getPosition():add(positionOffset),
+            rotation = self.getRotation(),
+            smooth = false,
+        })
+        local position = self.getPosition():add(positionOffset)
+        if isInverse then
+            local x, y, z = position:get()
+            position.x = -x
+            position.z = 23.5
+        end
+    
+        local clonedObject = takenObject.clone({
+            position = position,
+            rotation = self.getRotation(),
+            snap_to_grid = true,
+        })
+        if not isInverse then
+            clonedObject.flip()
+        end
+        clonedObject.flip()
+        Wait.time(function() clonedObject.setLock(true) end, 3)
+        object.putObject(takenObject)
+    end
+    
+    function onSave()
+        local state = {}
+        state[self.getGUID()] = {
+            oldIslandState = oldIslandState,
+            oldIslandCounter = oldIslandCounter,
+            cloneAndLockedShips = cloneAndLockedShips,
+            isSpawnedBowl = isSpawnedBowl,
+            bowlGuid = objectGuids.bowl,
+            isSpawnedTreasureTile = isSpawnedTreasureTile,
+            treasureTileGuid = objectGuids.treasureTile,
+            isInverse = isInverse,
+        }
+    
+        return JSON.encode(state)
+    end
+    
+    function addOldWorldIsland(obj, player_clicker_color, alt_click)
+        oldIslandCounter = oldIslandCounter + 1
+        if oldIslandCounter + newIslandCounter > 4 then
+            broadcastToAll('Player has the Max Number of Islands', {1,0,0})
+            oldIslandCounter = oldIslandCounter - 1
+            return
+        end
+        if oldIslandCounter > 4 then
+            broadcastToAll('Player has the Max Number of Old World Island', {1,0,0})
+            return
+        end
+        local position = {}
+        local positionOffset = {}
+        if isInverse then
+            position = self.getPosition():add(Vector(-10.5, 1, 3))
+            positionOffset = Vector(6, 0, 0):inverse()
+        else
+            position = self.getPosition():add(Vector(10.5, 1, -3))
+            positionOffset = Vector(6, 0, 0)
+        end
+    
+        for iteration = 1, oldIslandState - 1 do
+            position:add(positionOffset)
+        end
+        object = getObjectFromGUID(objectGuids.old_world_islands)
+        takenObject = object.takeObject({
+            position = position,
+            rotation = self.getRotation(),
+            smooth = false,
+            callback_function = function(obj) Wait.time(function() obj.setLock(true) end, 1) end,
+        })
+    
+        takenObject.setName("")
+        local snapPoints = {
+            {position = {0, 0, 0}, rotation = {0, 0, 0}},
+        }
+        takenObject.setSnapPoints(snapPoints)
+        oldIslandState = oldIslandState + 1
+    end
+    
+    function addNewWorldIsland(obj, player_clicker_color, alt_click)
+        newIslandCounter = newIslandCounter + 1
+        if oldIslandCounter + newIslandCounter > 4 then
+            broadcastToAll('Player has the Max Number of Islands', {1,0,0})
+            newIslandCounter = newIslandCounter - 1
+            return
+        end
+        if newIslandCounter > 4 then
+            broadcastToAll('Player has the Max Number of New World Island', {1,0,0})
+            return
+        end
+        local position = {}
+        local positionOffset = {}
+        if isInverse then
+            position = self.getPosition():add(Vector(-12, 1, -3))
+            positionOffset = Vector(9, 0, 0):inverse()
+        else
+            position = self.getPosition():add(Vector(12, 1, 3))
+            positionOffset = Vector(9, 0, 0)
+        end
+    
+        for iteration = 1, newIslandState - 1 do
+            position:add(positionOffset)
+        end
+        object = getObjectFromGUID(objectGuids.new_world_islands)
+        takenObject = object.takeObject({
+            position = position,
+            rotation = self.getRotation(),
+            smooth = false,
+            callback_function = function(obj) Wait.time(function() obj.setLock(true) end, 1) end,
+        })
+    
+        takenObject.setName("")
+        newIslandState = newIslandState + 1
+    end
+    
+    function festivalAction(obj, player_clicker_color, alt_click)
+        festival_guids = {
+            farmers = {},
+            workers = {},
+            artisans = {},
+            engineers = {},
+            investors = {},
+            tradeTokens = {},
+            explorationTokens = {},
+            tradeShip = {
+                level1 = {},
+                level2 = {},
+                level3 = {},
+            },
+            explorationShip = {
+                level1 = {},
+                level2 = {},
+                level3 = {},
+            },
+        }
+        local bowl = getObjectFromGUID(objectGuids.bowl)
+        local bowlPosition = bowl.getPosition()
+        local objectsInBowl = Physics.cast({
+            origin = bowlPosition,
+            direction = {0, 1, 0},
+            type = 3,
+            size = {3.5, 3.5, 3.5}, 
+            max_distance = 0,
+            debug = true 
+        })
+        local tilePosition = self.getPosition()
+        local objectsOnHomeIsland = Physics.cast({
+            origin = tilePosition,
+            direction = {0, 1, 0},
+            type = 3,
+            size = {15, 3, 15}, 
+            max_distance = 0,
+            debug = true
+        })
+        
+    
+        for _, object in ipairs(objectsOnHomeIsland) do
+            fetchguidsFromCast(object)
+        end
+        for _, object in ipairs(objectsInBowl) do
+            fetchguidsFromCast(object)
+        end
+    
+        local position = {}
+        if isInverse then
+            position = self.getPosition():add(Vector(-10.5, 0, 3))
+            positionOffset = Vector(6, 0, 0):inverse()
+        else
+            position = self.getPosition():add(Vector(10.5, 0, -3))
+            positionOffset = Vector(6, 0, 0)
+        end
+    
+        if oldIslandCounter > 0 then
+            if isInverse then
+                position[1] = position[1] - ((locations.oldWorldXOffset / 2) * (oldIslandCounter - 1))
+            else
+                position[1] = position[1] + ((locations.oldWorldXOffset / 2) * (oldIslandCounter - 1))
+            end
+            local objectsOnOldWorldIslands = Physics.cast({
+                origin = position,
+                direction = {0, 1, 0},
+                type = 3,
+                size = {6 * oldIslandCounter, 1, 9}, 
+                max_distance = 0,
+                debug = true
+            })
+            
+            for _, object in ipairs(objectsOnOldWorldIslands) do
+                fetchguidsFromCast(object)
+            end
+        end
+    
+        positionOffsetFarmer = Vector(-6.75, 0, 6.5)
+        positionOffsetWorker = Vector(-3.75, 0, 6.5)
+        positionOffsetArtisan = Vector(-0.75, 0, 6.5)
+        positionOffsetEngineer = Vector(2, 0, 6.5)
+        positionOffsetInvestor = Vector(5, 0, 6.5)
+        positionOffsetTradeToken = Vector(-6.5, 1, -5.35)
+        positionOffsetExplorationToken = Vector(-0.75, 1, -5.35)
+    
+        if isInverse then
+            positionOffsetFarmer:inverse()
+            positionOffsetWorker:inverse()
+            positionOffsetArtisan:inverse()
+            positionOffsetEngineer:inverse()
+            positionOffsetInvestor:inverse()
+            positionOffsetTradeToken:inverse()
+            positionOffsetExplorationToken:inverse()
+        end
+        festivalPopInitialLocation = {
+            farmers = {
+                position = self.getPosition():add(positionOffsetFarmer),
+                rotation = {0.00, 180.00, 0.00},
+                positionXOffset = 0.5,
+                positionZOffset = 0.5,
+            },
+            workers = {
+                position = self.getPosition():add(positionOffsetWorker),
+                rotation = {0.00, 180.00, 0.00},
+                positionXOffset = 0.5,
+                positionZOffset = 0.5,
+            },
+            artisans = {
+                position = self.getPosition():add(positionOffsetArtisan),
+                rotation = {0.00, 180.00, 0.00},
+                positionXOffset = 0.5,
+                positionZOffset = 0.5,
+            },
+            engineers = {
+                position = self.getPosition():add(positionOffsetEngineer),
+                rotation = {0.00, 180.00, 0.00},
+                positionXOffset = 0.5,
+                positionZOffset = 0.5,
+            },
+            investors = {
+                position = self.getPosition():add(positionOffsetInvestor),
+                rotation = {0.00, 180.00, 0.00},
+                positionXOffset = 0.5,
+                positionZOffset = 0.5,
+            },
+            tradeTokens = {
+                position = self.getPosition():add(positionOffsetTradeToken),
+                rotation = {0.00, 180.00, 0.00},
+                positionXOffset = 0.5,
+                positionZOffset = 0.5,
+            },
+            explorationTokens = {
+                position = self.getPosition():add(positionOffsetExplorationToken),
+                rotation = {0.00, 180.00, 0.00},
+                positionXOffset = 0.5,
+                positionZOffset = 0.5,
+            },
+        }
+    
+    
+        for category, guids in pairs(festival_guids) do
+            local function isInTable(value, tbl)
+                for _, v in pairs(tbl) do
+                    if v == value then
+                        return true
+                    end
+                end
+                return false
+            end
+            if not isInTable(category, {
+                'farmers', 'workers', 'artisans', 'engineers',
+                'investors', 'tradeTokens', 'explorationTokens'
+            }) then
+                break
+            end
+    
+            if category == 'tradeTokens' then
+                for _, guid in ipairs(guids) do
+                    local bag = getObjectFromGUID(objectGuids.tradeTokens)
+                    local object = getObjectFromGUID(guid)
+                    bag.putObject(object)
+                end
+                local resetTradeTokenCount = 0
+                for level, shipGUIDs in pairs(festival_guids.tradeShip) do
+                    if level == 'level1' then
+                        resetTradeTokenCount = 1
+                        for _, shipGUID in ipairs(shipGUIDs) do
+                            dealTradeToken(shipGUID, objectGuids.tradeTokens, resetTradeTokenCount)
+                        end
+                    end
+                    if level == 'level2' then
+                        resetTradeTokenCount = 2
+                        for _, shipGUID in ipairs(shipGUIDs) do
+                            dealTradeToken(shipGUID, objectGuids.tradeTokens, resetTradeTokenCount)
+                        end
+                    end
+                    if level == 'level3' then
+                        resetTradeTokenCount = 3
+                        for _, shipGUID in ipairs(shipGUIDs) do
+                            dealTradeToken(shipGUID, objectGuids.tradeTokens, resetTradeTokenCount)
+                        end
+                    end
+                    
+                end
+            end
+    
+            if category == 'explorationTokens' then
+                for _, guid in ipairs(guids) do
+                    local bag = getObjectFromGUID(objectGuids.explorationTokens)
+                    local object = getObjectFromGUID(guid)
+                    bag.putObject(object)
+                end
+                local resetExplorationTokenCount = 0
+                for level, shipGUIDs in pairs(festival_guids.explorationShip) do
+                    if level == 'level1' then
+                        resetExplorationTokenCount = 1
+                        for _, shipGUID in ipairs(shipGUIDs) do
+                            dealTradeToken(shipGUID, objectGuids.explorationTokens, resetExplorationTokenCount)
+                        end
+                    end
+                    if level == 'level2' then
+                        resetExplorationTokenCount = 2
+                        for _, shipGUID in ipairs(shipGUIDs) do
+                            dealTradeToken(shipGUID, objectGuids.explorationTokens, resetExplorationTokenCount)
+                        end
+                    end
+                    if level == 'level3' then
+                        resetExplorationTokenCount = 3
+                        for _, shipGUID in ipairs(shipGUIDs) do
+                            dealTradeToken(shipGUID, objectGuids.explorationTokens, resetExplorationTokenCount)
+                        end
+                    end
+                    
+                end
+            end
+    
+            if isInTable(category, {
+                'farmers', 'workers', 'artisans', 'engineers',
+                'investors',
+            }) then
+                local guidCounter = 0
+                local positionXOffset = 0
+                local positionZOffset = 0
+                local position = {
+                    festivalPopInitialLocation[category].position[1],
+                    festivalPopInitialLocation[category].position[2] + 1,
+                    festivalPopInitialLocation[category].position[3],
+                }
+                for _, guid in ipairs(guids) do
+                    local object = getObjectFromGUID(guid)
+                    object.setRotationSmooth(festivalPopInitialLocation[category].rotation)
+                    object.setPositionSmooth(position)
+        
+                    guidCounter = guidCounter + 1
+                    if guidCounter % 4 == 0 then
+                        position[1] = festivalPopInitialLocation[category].position[1]
+                        position[3] = festivalPopInitialLocation[category].position[3] - (
+                            festivalPopInitialLocation[category].positionZOffset * (guidCounter / 4)
+                        )
+                    else
+                        position[1] = position[1] + festivalPopInitialLocation[category].positionXOffset
+                    end
+                end
+            end
+        end
+    end
+    
+    function fetchguidsFromCast(object)
+        if object.hit_object.getName() == 'Investor' then
+            festival_guids.investors[#festival_guids.investors + 1] = object.hit_object.guid
+        end
+        if object.hit_object.getName() == 'Farmer' then
+            festival_guids.farmers[#festival_guids.farmers + 1] = object.hit_object.guid
+        end
+        if object.hit_object.getName() == 'Worker' then
+            festival_guids.workers[#festival_guids.workers + 1] = object.hit_object.guid
+        end
+        if object.hit_object.getName() == 'Artisan' then
+            festival_guids.artisans[#festival_guids.artisans + 1] = object.hit_object.guid
+        end
+        if object.hit_object.getName() == 'Engineer' then
+            festival_guids.engineers[#festival_guids.engineers + 1] = object.hit_object.guid
+        end
+        if object.hit_object.getName() == 'Trade Token' then
+            festival_guids.tradeTokens[#festival_guids.tradeTokens + 1] = object.hit_object.guid
+        end
+        if object.hit_object.getName() == 'Exploration Token' then
+            festival_guids.explorationTokens[#festival_guids.explorationTokens + 1] = object.hit_object.guid
+        end
+        if object.hit_object.getName() == 'Trade Ship 1' then
+            festival_guids.tradeShip.level1[#festival_guids.tradeShip.level1 + 1] = object.hit_object.guid
+        end
+        if object.hit_object.getName() == 'Trade Ship 2' then
+            festival_guids.tradeShip.level2[#festival_guids.tradeShip.level2 + 1] = object.hit_object.guid
+        end
+        if object.hit_object.getName() == 'Trade Ship 3' then
+            festival_guids.tradeShip.level3[#festival_guids.tradeShip.level3 + 1] = object.hit_object.guid
+        end
+        if object.hit_object.getName() == 'Exploration Ship 1' then
+            festival_guids.explorationShip.level1[#festival_guids.explorationShip.level1 + 1] = object.hit_object.guid
+        end
+        if object.hit_object.getName() == 'Exploration Ship 2' then
+            festival_guids.explorationShip.level2[#festival_guids.explorationShip.level2 + 1] = object.hit_object.guid
+        end
+        if object.hit_object.getName() == 'Exploration Ship 3' then
+            festival_guids.explorationShip.level3[#festival_guids.explorationShip.level3 + 1] = object.hit_object.guid
+        end
+    end
+    
+    function dealTradeToken(shipGUID, bagGUID, resetTradeTokenCount)
+        local ship = getObjectFromGUID(shipGUID)
+        local bag = getObjectFromGUID(bagGUID)
+        for iteration = 1, resetTradeTokenCount do
+            local token = bag.takeObject({
+                position = {
+                    ship.getPosition()[1] + (0.5 * iteration - 1),
+                    ship.getPosition()[2] + (1 * iteration - 1),
+                    ship.getPosition()[3],
+                },
+                rotation = {0, 180, 0},
+                smooth = false,
+            })
+        end
+    end
+     
+]]
 locations = {
     Red = {
+        isInverse = false,
         playerHandLocations = {
             position = {-26.00, 1.00, -30.00},
             rotation = {0.00, 0.00, 0.00},
@@ -83,6 +708,7 @@ locations = {
         },
     },
     Blue = {
+        isInverse = false,
         playerHandLocations = {
             position = {26.00, 1.00, -30.00},
             rotation = {0.00, 0.00, 0.00},
@@ -90,7 +716,7 @@ locations = {
         },
         homeIslandLocation = {
             position = {26.00, 0.10, -18.00},
-            rotation = {0.00, 0.00, 0.00},
+            rotation = {0.00, 180.00, 0.00},
             scale = {7.50, 1.00, 7.50},
         },
         oldWorldIslandLocation = {
@@ -148,6 +774,7 @@ locations = {
         },
     },
     Green = {
+        isInverse = true,
         playerHandLocations = {
             position = {-26.00, 1.00, 30.00},
             rotation = {0.00, 0.00, 0.00},
@@ -155,7 +782,7 @@ locations = {
         },
         homeIslandLocation = {
             position = {-26.00, 0.10, 18.00},
-            rotation = {0.00, 180.00, 0.00},
+            rotation = {0.00, 0.00, 0.00},
             scale = {7.50, 1.00, 7.50},
         },
         oldWorldIslandLocation = {
@@ -213,6 +840,7 @@ locations = {
         },
     },
     Yellow = {
+        isInverse = true,
         playerHandLocations = {
             position = {26.00, 1.00, 30.00},
             rotation = {0.00, 0.00, 0.00},
@@ -390,7 +1018,7 @@ function GameSetup:step5()
                 object.takeObject({
                     position = location,
                     rotation = {0.00, 90.00, 0.00},
-                    smooth = true
+                    smooth = false
                 })
                 location[3] = location[3] + zOffset
             end
@@ -401,7 +1029,7 @@ function GameSetup:step5()
             object.takeObject({
                 position = location,
                 rotation = {0.00, 90.00, 0.00},
-                smooth = true
+                smooth = false
             })
             location[3] = location[3] + zOffset
         end
@@ -418,28 +1046,26 @@ end
 function GameSetup:step6()
     -- Each player is given one home island and places 4 farmers, 3 workers and 2 artisans
     -- on their respective residential districts.
-    for index, player in ipairs(locations) do
-        if index > numberOfPlayers then
-            break
-        end
-        object = getObjectFromGUID(guids.old_world_islands).takeObject({
-            position = locations[player].homeIslandLocation.position,
-            rotation = locations[player].homeIslandLocation.rotation,
-            smooth = true
+    for player, playerObject in pairs(locations) do
+        homeIslandTile = spawnObject({
+            type = "Custom_tile",
+            position = playerObject.homeIslandLocation.position,
+            rotation = playerObject.homeIslandLocation.rotation,
+            scale = playerObject.homeIslandLocation.scale,
         })
-        object.setScale(locations[player].homeIslandLocation.scale)
-        object = getObjectFromGUID(guids.new_world_islands).takeObject({
-            position = locations[player].oldWorldIslandLocation.position,
-            rotation = locations[player].oldWorldIslandLocation.rotation,
-            smooth = true
+        homeIslandTile.setCustomObject({
+            image = 'http://cloud-3.steamusercontent.com/ugc/2283954541477632671/68F306DB1C47759911A1C497A25FC6023704D15D/',
+            image_bottom = 'http://cloud-3.steamusercontent.com/ugc/2283954541477632671/68F306DB1C47759911A1C497A25FC6023704D15D/',
+            thickness = 0.1,
+            stackable = false,
+            type = 0,
         })
-        object.setScale(locations[player].oldWorldIslandLocation.scale)
-        object = getObjectFromGUID(guids.new_world_islands).takeObject({
-            position = locations[player].newWorldIslandLocation.position,
-            rotation = locations[player].newWorldIslandLocation.rotation,
-            smooth = true
-        })
-        object.setScale(locations[player].newWorldIslandLocation.scale)
+        globalState[homeIslandTile.getGUID()] = {
+            isInverse = playerObject.isInverse,
+        }
+        homeIslandTile.setLock(true)
+        homeIslandTile.setName("Home Island")
+        homeIslandTile.setLuaScript(homeIslandScript)
     end
     deal = {
         farmers = 4,
@@ -527,24 +1153,20 @@ function GameSetup:step9()
     log("Setup 9 Done")
 end
 
--- add more steps as needed
-
---[[ The onLoad event is called after the game save finishes loading. --]]
 function onLoad(script_state)
-    local state = JSON.decode(script_state)
-    if state and state.setupCompleted then
-        UI.hide("startGame")
+    if script_state ~= '' then
+        local state = JSON.decode(script_state)
+        if state and state.setupCompleted then
+            UI.hide("startGame")
+        end
     end
-
-    return JSON.encode(state)
 end
 
 function onSave()
-    local state = {
-        firstGame = firstGame,
-        setupCompleted = setupCompleted,
-        numberOfPlayers = numberOfPlayers,
-    }
+    local state = globalState
+    state.firstGame = firstGame
+    state.setupCompleted = setupCompleted
+    state.numberOfPlayers = numberOfPlayers
 
     return JSON.encode(state)
 end
@@ -594,7 +1216,13 @@ function setFirstGame()
 end
 
 function optionSelected(player, option, s)
-    log(player.steam_name .. " selected: " .. option)
     numberOfPlayers = tonumber(option)
-    log(numberOfPlayers)
+end
+
+function getIsInverse(rotation)
+    -- log(Vector(rotation.rotation):equals(Vector(0.00, 0.00, 0.00)))
+    if Vector(rotation.rotation):equals(Vector(0.00, 0.00, 0.00)) then
+        return true
+    end
+    return false
 end

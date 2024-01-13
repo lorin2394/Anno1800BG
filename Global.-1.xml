@@ -46,13 +46,13 @@
                 <Toggle onValueChanged="setFirstGame(isOn)" isOn="false">
                     <Text color="rgba(255,255,255,0.95)"> Is this your first Game</Text>
                 </Toggle>
-                <Text color="rgba(255,255,255,0.95)">Choose Number of Players</Text>
+                <!-- <Text color="rgba(255,255,255,0.95)">Choose Number of Players</Text>
                 <Dropdown id="Selection" onValueChanged="optionSelected">
                     <Option>1</Option>
                     <Option>2</Option>
                     <Option>3</Option>
                     <Option selected="true">4</Option>
-                </Dropdown>
+                </Dropdown> -->
             </VerticalLayout>
         </Cell>
     </Row>
